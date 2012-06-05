@@ -1,60 +1,115 @@
-(defparameter *ht* (make-hash-table))
+;III proyecto programado, Lenguajes de programacion
+;Adrian Diaz Meza, John Largaespada perez, Alonso Vargas Astua
 
-(defun recorre(directorio)
-  (let((archivo 0))
-		(dolist (file (directory (make-pathname :type "pdf" :name :wild :defaults directorio)))
-			(setf (gethash archivo *ht*) file)
-			(setf archivo (+ archivo 1))
-		)
-	)
-)
-(recorre "/home/addiaz/Escritorio/III progra/")
+;--------------------------------------------------------------------------------------------------------------------------------------
+;se define una base de datos donde estaran almacenados todos los datos de los pdf
+(defun bd_pdf(titulo autor asunto palabras_clave fecha_creacion )
+(list :titulo titulo  :autor autor :asunto asunto :palabras_clave palabras_clave :fecha_creacion fecha_creacion))
+(defvar *db* nil)
+;La funcion agrega introduce un dato nuevo a la base de datos
+(defun agrega(bd_pdf) (push bd_pdf *db*))
+;la tabla ficheros almacema temporalmente las direcciones de los ficheros pdf
+(defparameter *tabla_ficheros* (make-hash-table))
 
-(defun itera(tabla)
-(loop for k being the hash-keys in tabla using(hash-value value)
-do (lectura(gethash k tabla)))
-)
+;--------------------------------------------------------------------------------------------------------------------------------------
+;las funciones busca_label, titulo, autor, asunto, fecha_creacion, palabras_clave 
+;se encargan de buscar los metadatos dentro de un fichero
+(defun busca_label (label str)
+	(search label str))
+	
+(defun titulo(str)
+	(subseq str( + (busca_label "/Title" str) 7)			  
+		( + (busca_label ")" (subseq str(busca_label "/Title" str)(-(length str) 1))) (busca_label "/Title" str))))
 
+(defun autor(str)
+	(subseq str( + (busca_label "/Author" str) 8 )			  
+		( + (busca_label ")" (subseq str(busca_label "/Author" str)(-(length str) 1))) (busca_label "/Author" str))))
+	
+(defun asunto(str)
+	(subseq str( + (busca_label "/Subject" str) 11 )  
+		( + (busca_label ")" (subseq str(busca_label "/Subject" str)(-(length str) 1))) (busca_label "/Subject" str))))
 
-(defun lectura (dir) (let ((in (open dir :element-type '(unsigned-byte 8) )))
+(defun fecha_creacion(str)
+	(subseq str( + (busca_label "/CreationDate" str) 16 )
+		( +  (busca_label "/CreationDate" str) 24)))
 
+(defun palabras_claves(str)
+	(subseq str( + (busca_label "/Keywords" str) 12 )
+		( + (busca_label ")" (subseq str(busca_label "/Keywords" str)(-(length str) 1))) (busca_label "/Keywords" str))))
+		
+;--------------------------------------------------------------------------------------------------------------------------------------
+;la funcion extraer datos toma los metadatos que se obtienen con las funciones de busqueda y los almacenan en la base de datos
+(defun extaer_metadatos (directorio) (let ((in (open directorio :element-type '(unsigned-byte 8) )))
 	(when in 
 		(let ((str (make-string (file-length in))))
-		(dotimes (i (file-length in))  
-			(setf (char str i) (code-char (read-byte in))))
+			(dotimes (i (file-length in))  
+				(setf (char str i) (code-char (read-byte in))))
+			(agrega(bd_pdf (titulo str) (autor str) (asunto str) (palabras_claves str) (fecha_creacion str)))))))
 			
-		;(buscar-titulo str)
-		(buscar-autor str)
-		;(buscar-creador str)
-		;(buscar-fecha str)
-		;(buscar-productor str)
-		;(buscar-palabras-claves str)
-))))
+;--------------------------------------------------------------------------------------------------------------------------------------
+;las funciones select_titulo, select_autor, select_asunto, select_palabras_claves y select_fecha_creacion 
+;realizan consultas a la base de datos con un parametro y retornan las filas con las que hay coincidencias
+(defun select_titulo(titulo)
+(remove-if-not #'(lambda (bd_pdf) (equal (getf bd_pdf :titulo) titulo)) *db*))
+   
+(defun select_autor(autor)
+  (remove-if-not  #'(lambda (bd_pdf) (equal (getf bd_pdf :autor) autor))*db*))
+   
+(defun select_asunto(asunto)
+  (remove-if-not #'(lambda (bd_pdf) (equal (getf bd_pdf :asunto) asunto)) *db*))
+   
+ (defun select_palabras_clave(palabras_clave)
+  (remove-if-not  #'(lambda (bd_pdf) (equal (getf bd_pdf :palabras_clave) palabras_clave))*db*))
+   
+(defun select_fecha_creacion(fecha_creacion)
+  (remove-if-not #'(lambda (bd_pdf) (equal (getf bd_pdf :fecha_creacion) fecha_creacion)) *db*))
+   
+;--------------------------------------------------------------------------------------------------------------------------------------
+;la funcion itera recorre el contenido de la tabla hash que contiene los directorios y 
+;los envia a las funciones que extren los metadatos
+(defun itera(tabla)
+	(loop for k being the hash-keys in tabla using(hash-value value)
+		do (extaer_metadatos(gethash k tabla))))
 
-
-(defun buscar-etiqueta (etiqueta str)
-	(search etiqueta str))
+;la funcion recorre extrae todos los archivos de tipo pdf que exinten en un directorio y los almacena en una tabla hash
+(defun recorre(directorio)
+	(let((archivo 0))
+		(dolist (file (directory (make-pathname :type "pdf" :name :wild :defaults directorio)))
+			(setf (gethash archivo *tabla_ficheros*) file)
+			(setf archivo (+ archivo 1))))
+	(itera *tabla_ficheros*))
 	
-(defun buscar-titulo(str)
-	(format t "Titulo: ~a~%"(subseq str( + (buscar-etiqueta "/Title" str) 7)			  
-									   ( + (buscar-etiqueta ")" (subseq str(buscar-etiqueta "/Title" str)(-(length str) 1))) (buscar-etiqueta "/Title" str)))))
+;--------------------------------------------------------------------------------------------------------------------------------------
+;la funcion inicio recibe un directorio y lo manda a las funciones que extraen
+;los nombres de los ficheros y metadatos para crear la base de datos
+(defun inicio()
+	(format t "~%ESCRIBA LA DIRECCION DEL DIRECTORIO ~% ")
+	(setf dir (read))
+	(recorre dir)
+	(menu))
 
-(defun buscar-autor(str)
-	(format t "Autor: ~a~%"(subseq str( + (buscar-etiqueta "/Author" str) 8 )			  
-									  ( + (buscar-etiqueta ")" (subseq str(buscar-etiqueta "/Author" str)(-(length str) 1))) (buscar-etiqueta "/Author" str)))))
-	
-(defun buscar-creador(str)
-	(format t "Creador: ~a~%"(subseq str( + (buscar-etiqueta "/Creator" str) 11 )  
-										( + (buscar-etiqueta ")" (subseq str(buscar-etiqueta "/Creator" str)(-(length str) 1))) (buscar-etiqueta "/Creator" str)))))
+;la funcion menu muestra las opciones de consulta que el usuario puede realizar
+(defun menu()
+	(format t "~%CONSULTAS~% 1 = Titulo~% 2 = Autor~% 3 = Asunto~% 4 = Palabra Clave~% 5 = fecha~% 6 = todo~% 7 = volver~%")
+	(setf opcion (read))
+	(format t "~%Palabra a consultar~%")
+	(setf palabra (read))
+	(if (= opcion 1)
+		(select_titulo palabra)
+		(if(= opcion 2)
+			(select_autor palabra)
+			(if(= opcion 3)
+				(select_asunto palabra)
+				(if(= opcion 4)
+					(select_palabras_claves palabra)
+					(if(= opcion 5)
+						(select_fecha_creacion palabra)
+						(if(= opcion 6 )
+							*db*
+							(if(= opcion 7)
+								(inicio)))))))))
+;-------------------------------------------------------------------------------------------------------------------------------------
 
-(defun buscar-fecha(str)
-	(format t "Fecha de creacion: ~a~%"(subseq str( + (buscar-etiqueta "/CreationDate" str) 16 )
-												  ( +  (buscar-etiqueta "/CreationDate" str) 24))))
 
-(defun buscar-productor(str)
-	(format t "Productor: ~a~%"(subseq str( + (buscar-etiqueta "/Producer" str) 12 )
-										  ( + (buscar-etiqueta ")" (subseq str(buscar-etiqueta "/Producer" str)(-(length str) 1))) (buscar-etiqueta "/Producer" str)))))
 
-(defun buscar-palabras-claves(str)
-	(format t "Palabras claves: ~a~%"(subseq str( + (buscar-etiqueta "/Keywords" str) 12 )
-										  ( + (buscar-etiqueta ")" (subseq str(buscar-etiqueta "/Keywords" str)(-(length str) 1))) (buscar-etiqueta "/Keywords" str)))))
+    
