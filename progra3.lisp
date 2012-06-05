@@ -80,6 +80,14 @@
 	(itera *tabla_ficheros*))
 	
 ;--------------------------------------------------------------------------------------------------------------------------------------
+
+;----------------------------------------------------------------------------------------------------------------------------
+;funcion para imprimir forma de tabla
+(defun imprime()
+(format t "~&Nombre~20TTitulo~35TAutor~45TPalabras_Clave~65TFecha_creacion" )
+(dolist (bd_pdf  *db* )
+    (format t "~{~&~A~20T~A~35t~A~45T~A~65T~A~}" bd_ pdf *db* )))
+;----------------------------------------------------------------------------------
 ;la funcion inicio recibe un directorio y lo manda a las funciones que extraen
 ;los nombres de los ficheros y metadatos para crear la base de datos
 (defun inicio()
@@ -101,7 +109,7 @@
 			(if(= opcion 3)
 				(select_asunto palabra)
 				(if(= opcion 4)
-					(select_palabras_claves palabra)
+					(select_palabras_clave palabra)
 					(if(= opcion 5)
 						(select_fecha_creacion palabra)
 						(if(= opcion 6 )
@@ -109,7 +117,3 @@
 							(if(= opcion 7)
 								(inicio)))))))))
 ;-------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-    
